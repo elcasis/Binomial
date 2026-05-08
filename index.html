@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Desafío Binomial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script>
+        tailwind.config={theme:{extend:{fontFamily:{sans:['Space Grotesk','sans-serif'],mono:['JetBrains Mono','monospace']}}}}
+    </script>
+    <style>
+        :root {
+            --bg:#0d0c08;--card:#171510;--card2:#1f1c14;--border:#2e2a1e;
+            --accent:#e8a317;--accent2:#f5c242;--success:#2dd4a0;--error:#f0544f;
+            --muted:#7a7460;--fg:#ede8dc;--formula-bg:#0f1410;--formula-border:#1c2e22;
+            --slot-empty:#1a1710;--slot-border:#3d3626;--slot-filled:#2a2510;
+            --chip-bg:#1e1b12;--chip-border:#38322a;
+        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden}
+        .screen{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center}
+        .hidden{display:none!important}
+
+        /* Fondo */
+        .bg-blob{position:fixed;border-radius:50%;filter:blur(120px);opacity:.1;pointer-events:none;z-index:0}
+        .b1{width:500px;height:500px;background:#e8a317;top:-150px;left:-100px;animation:bf1 25s ease-in-out infinite}
+        .b2{width:400px;height:400px;background:#2dd4a0;bottom:-100px;right:-80px;animation:bf2 20s ease-in-out infinite}
+        @keyframes bf1{0%,100%{transform:translate(0,0)}50%{transform:translate(80px,60px)}}
+        @keyframes bf2{0%,100%{transform:translate(0,0)}50%{transform:translate(-60px,-80px)}}
+
+        /* Bienvenida */
+        .wtitle{font-size:clamp(2.2rem,7vw,4rem);font-weight:700;letter-spacing:-.03em;line-height:1.1;
+            background:linear-gradient(135deg,#e8a317 0%,#f5c242 50%,#f97316 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .formula-hero{font-family:'JetBrains Mono',monospace;font-size:clamp(.9rem,2.8vw,1.3rem);color:var(--muted);
+            padding:.8rem 1.5rem;background:var(--formula-bg);border:1px solid var(--formula-border);border-radius:12px}
+
+        /* Barra superior */
+        .top-bar{position:sticky;top:0;z-index:50;background:rgba(13,12,8,.88);backdrop-filter:blur(12px);
+            border-bottom:1px solid var(--border);padding:.65rem 1.2rem;width:100%}
+        .pseg{height:5px;flex:1;border-radius:3px;background:var(--border);transition:background .4s,box-shadow .4s;margin:0 2px}
+        .pseg.sg{background:var(--success);box-shadow:0 0 6px rgba(45,212,160,.4)}
+        .pseg.sa{background:var(--accent);box-shadow:0 0 6px rgba(232,163,23,.4)}
+        .pseg.se{background:var(--error);box-shadow:0 0 6px rgba(240,84,79,.3)}
+        .pseg.sc{background:var(--accent);animation:spulse 1.5s ease-in-out infinite}
+        @keyframes spulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+        /* Tarjeta problema */
+        .pcard{background:var(--card);border:1px solid var(--border);border-radius:16px;max-width:740px;width:100%;padding:1.75rem;animation:cin .45s ease-out}
+        @keyframes cin{0%{opacity:0;transform:translateY(25px)}100%{opacity:1;transform:translateY(0)}}
+
+        /* Fórmula */
+        .formula-board{font-family:'JetBrains Mono',monospace;background:var(--formula-bg);border:1px solid var(--formula-border);
+            border-radius:10px;padding:1rem 1.2rem;text-align:center;box-shadow:inset 0 2px 8px rgba(0,0,0,.3);
+            display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px;line-height:2.2}
+        .ftxt{color:#a7f3d0;font-size:1.05rem}
+        .ftxt sup{font-size:.7em;vertical-align:super}
+        .ftxt sub{font-size:.7em;vertical-align:sub}
+        .ftimes{color:#5e7a68;font-size:1.1rem;margin:0 6px}
+
+        /* Slots */
+        .fslot{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:32px;padding:0 8px;
+            background:var(--slot-empty);border:1.5px dashed var(--slot-border);border-radius:6px;
+            font-family:'JetBrains Mono',monospace;font-size:.95rem;color:var(--muted);cursor:pointer;
+            transition:all .2s;vertical-align:middle;margin:0 2px}
+        .fslot:hover{border-color:var(--accent);background:rgba(232,163,23,.06)}
+        .fslot.filled{border-style:solid;border-color:var(--accent);background:rgba(232,163,23,.12);color:var(--accent2);font-weight:600}
+        .fslot.filled:hover{border-color:var(--error);background:rgba(240,84,79,.08)}
+        .fslot.wrong-flash{animation:wflash .45s ease}
+        @keyframes wflash{0%,100%{border-color:var(--slot-border);background:var(--slot-empty)}30%{border-color:var(--error);background:rgba(240,84,79,.15)}}
+        .fslot.hint-glow{border-color:var(--accent2);box-shadow:0 0 10px rgba(245,194,66,.25);animation:hglow 1.5s ease-in-out infinite}
+        @keyframes hglow{0%,100%{box-shadow:0 0 8px rgba(245,194,66,.2)}50%{box-shadow:0 0 16px rgba(245,194,66,.4)}}
+
+        /* Fichas */
+        .chip{display:inline-flex;align-items:center;justify-content:center;padding:.45rem 1rem;
+            background:var(--chip-bg);border:1.5px solid var(--chip-border);border-radius:8px;
+            font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:600;color:var(--fg);
+            cursor:pointer;transition:all .2s;user-select:none}
+        .chip:hover:not(.used){border-color:var(--accent);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+        .chip.selected{border-color:var(--accent2);background:rgba(232,163,23,.12);color:var(--accent2);
+            box-shadow:0 0 16px rgba(232,163,23,.2);transform:translateY(-3px)}
+        .chip.used{opacity:.3;cursor:default;transform:none;box-shadow:none;border-color:var(--chip-bg)}
+
+        /* Desarrollo */
+        .dev-step{opacity:0;transform:translateX(-15px);transition:all .4s ease;margin-top:.5rem}
+        .dev-step.show{opacity:1;transform:translateX(0)}
+        .dev-line{font-family:'JetBrains Mono',monospace;font-size:.9rem;padding:.4rem .8rem;border-radius:6px;background:var(--card2)}
+        .dev-final{border:1px solid rgba(45,212,160,.3);background:rgba(45,212,160,.06);color:var(--success);font-size:1rem;font-weight:700}
+        .dev-result-num{font-size:1.6rem;font-weight:700;color:var(--accent2);display:block;margin-top:.25rem}
+
+        /* Botones */
+        .btn-p{background:linear-gradient(135deg,#e8a317,#f97316);color:#000;border:none;border-radius:10px;
+            padding:.7rem 2rem;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1rem;cursor:pointer;
+            transition:transform .15s,box-shadow .2s}
+        .btn-p:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(232,163,23,.3)}
+        .btn-p:active{transform:translateY(0)}
+        .btn-p:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none}
+        .btn-s{background:var(--card2);color:var(--fg);border:1px solid var(--border);border-radius:10px;
+            padding:.7rem 2rem;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:.95rem;cursor:pointer;transition:all .2s}
+        .btn-s:hover{border-color:var(--accent);color:var(--accent)}
+        .btn-sm{padding:.4rem .85rem;font-size:.82rem;border-radius:7px}
+        .btn-icon{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;
+            padding:.45rem .7rem;cursor:pointer;font-size:.85rem;transition:all .2s}
+        .btn-icon:hover:not(.used){border-color:var(--accent);color:var(--accent)}
+        .btn-icon.used{opacity:.35;cursor:default}
+
+        /* Partículas */
+        .particle{position:fixed;width:7px;height:7px;border-radius:50%;pointer-events:none;z-index:100;
+            animation:pb .65s ease-out forwards}
+        @keyframes pb{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+
+        /* Toast */
+        .toast-c{position:fixed;top:75px;right:16px;z-index:200;display:flex;flex-direction:column;gap:6px}
+        .toast{padding:.6rem 1rem;border-radius:8px;font-size:.85rem;font-weight:500;animation:tin .25s ease;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+        .toast-s{background:rgba(45,212,160,.12);border:1px solid rgba(45,212,160,.25);color:var(--success)}
+        .toast-e{background:rgba(240,84,79,.12);border:1px solid rgba(240,84,79,.25);color:var(--error)}
+        .toast-i{background:rgba(232,163,23,.12);border:1px solid rgba(232,163,23,.25);color:var(--accent)}
+        .toast-out{animation:tout .25s ease forwards}
+        @keyframes tin{0%{opacity:0;transform:translateX(30px)}100%{opacity:1;transform:translateX(0)}}
+        @keyframes tout{0%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(30px)}}
+
+        /* Resultados */
+        .score-big{font-size:clamp(2.5rem,9vw,4.5rem);font-weight:700;line-height:1;
+            background:linear-gradient(135deg,#e8a317,#f5c242);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .rank-badge{font-size:1rem;font-weight:700;padding:.4rem 1.2rem;border-radius:50px;display:inline-block}
+        .rg{background:linear-gradient(135deg,#e8a317,#f5c242);color:#000}
+        .rs{background:linear-gradient(135deg,#94a3b8,#cbd5e1);color:#000}
+        .rb{background:linear-gradient(135deg,#d97706,#b45309);color:#fff}
+        .rk{background:var(--card2);color:var(--muted);border:1px solid var(--border)}
+        .rcard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;transition:transform .2s}
+        .rcard:hover{transform:translateX(3px)}
+        .bar-fill{height:100%;border-radius:2px;transition:width 1s ease}
+
+        .explain-box{background:rgba(45,212,160,.05);border:1px solid rgba(45,212,160,.18);border-radius:10px;
+            padding:.85rem 1rem;margin-top:.75rem;animation:ein .4s ease}
+        @keyframes ein{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+
+        @media(max-width:640px){
+            .pcard{padding:1.2rem;margin:0 .4rem}
+            .formula-board{font-size:.85rem;padding:.7rem .6rem;gap:1px;line-height:2}
+            .fslot{min-width:36px;height:28px;font-size:.82rem;padding:0 5px}
+            .chip{padding:.35rem .7rem;font-size:.88rem}
+        }
+        @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    </style>
+</head>
+<body>
+<div class="bg-blob b1"></div>
+<div class="bg-blob b2"></div>
+<div class="toast-c" id="toastC"></div>
+<div id="partC"></div>
+
+<!-- BIENVENIDA -->
+<div class="screen" id="scrWelcome">
+    <div class="text-center px-4 max-w-2xl">
+        <div class="mb-2 text-sm font-mono tracking-widest uppercase" style="color:var(--muted)">Probabilidad Binomial</div>
+        <h1 class="wtitle mb-3">Desafio Binomial</h1>
+        <div class="formula-hero mb-4">P(X = k) = C(n, k) &middot; p<sup>k</sup> &middot; q<sup>n&minus;k</sup></div>
+        <p class="mb-6 mx-auto" style="color:var(--muted);max-width:460px;font-size:.95rem">
+            Se te presentaran problemas de la vida real. Identifica los valores, colocalos en la formula correcta y el juego calculara el resultado por ti.
+        </p>
+        <div class="mb-8 text-left max-w-sm mx-auto" style="color:var(--muted);font-size:.85rem">
+            <div class="flex items-start gap-3 mb-2"><i class="fas fa-hand-pointer mt-0.5" style="color:var(--accent);width:16px"></i><span>Haz clic en una ficha y luego en el espacio de la formula donde va.</span></div>
+            <div class="flex items-start gap-3 mb-2"><i class="fas fa-lightbulb mt-0.5" style="color:var(--accent);width:16px"></i><span>Usa pistas si necesitas ayuda (reducen puntos).</span></div>
+            <div class="flex items-start gap-3"><i class="fas fa-calculator mt-0.5" style="color:var(--accent);width:16px"></i><span>Una vez colocados los terminos, el juego calcula el resultado.</span></div>
+        </div>
+        <button class="btn-p" onclick="startGame()"><i class="fas fa-play mr-2"></i>Comenzar</button>
+    </div>
+</div>
+
+<!-- JUEGO -->
+<div class="screen hidden" id="scrGame" style="justify-content:flex-start">
+    <div class="top-bar">
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-3">
+                <span class="font-mono text-sm" style="color:var(--muted)" id="pCounter">1 / 10</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-1.5" style="color:var(--accent);font-size:.82rem">
+                    <i class="fas fa-fire"></i><span class="font-mono font-bold" id="streakN">0</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i class="fas fa-star" style="color:var(--accent);font-size:.82rem"></i>
+                    <span class="font-mono font-bold" style="color:var(--accent2)" id="scoreN">0</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex" id="progBar"></div>
+    </div>
+    <div class="flex-1 flex items-start justify-center pt-5 pb-12 px-3">
+        <div id="gameCont" class="w-full" style="max-width:740px"></div>
+    </div>
+</div>
+
+<!-- RESULTADOS -->
+<div class="screen hidden" id="scrResults">
+    <div class="text-center px-4 max-w-xl w-full" id="resCont"></div>
+</div>
+
+<script>
+// ============================
+// DATOS: 10 ejercicios variados
+// ============================
+const EX = [
+    {
+        stmt: 'Un jugador de baloncesto anota el <strong style="color:var(--accent)">70%</strong> de sus tiros libres. Si tira <strong style="color:var(--accent)">3</strong> veces hoy, &iquest;cu&aacute;l es la probabilidad de que acierte exactamente <strong style="color:var(--accent)">2</strong>?',
+        n:3, k:2, p:.7, q:.3, fo:['C','p','q'], dist:['70','0.07','0.5','6']
+    },
+    {
+        stmt: 'Una moneda trucada tiene un <strong style="color:var(--accent)">60%</strong> de probabilidad de salir cara. Si se lanza <strong style="color:var(--accent)">5</strong> veces, &iquest;probabilidad de obtener exactamente <strong style="color:var(--accent)">3</strong> caras?',
+        n:5, k:3, p:.6, q:.4, fo:['q','C','p'], dist:['60','0.06','15','8']
+    },
+    {
+        stmt: 'En una f&aacute;brica, el <strong style="color:var(--accent)">10%</strong> de las bombillas salen defectuosas. Si se toman <strong style="color:var(--accent)">6</strong> bombillas, &iquest;probabilidad de que exactamente <strong style="color:var(--accent)">1</strong> sea defectuosa?',
+        n:6, k:1, p:.1, q:.9, fo:['p','q','C'], dist:['10','0.01','0.5','7']
+    },
+    {
+        stmt: 'Un examen tiene <strong style="color:var(--accent)">4 opciones</strong> por pregunta. Un alumno contesta <strong style="color:var(--accent)">8</strong> preguntas al azar. &iquest;Probabilidad de acertar exactamente <strong style="color:var(--accent)">2</strong>?',
+        n:8, k:2, p:.25, q:.75, fo:['C','q','p'], dist:['25','4','0.5','16']
+    },
+    {
+        stmt: 'El <strong style="color:var(--accent)">65%</strong> de los estudiantes aprueba F&iacute;sica. En un grupo de <strong style="color:var(--accent)">7</strong>, &iquest;probabilidad de que aprueben exactamente <strong style="color:var(--accent)">4</strong>?',
+        n:7, k:4, p:.65, q:.35, fo:['q','p','C'], dist:['65','0.065','28','11']
+    },
+    {
+        stmt: 'Un alumno llega tarde a clase con probabilidad del <strong style="color:var(--accent)">40%</strong>. En una semana de <strong style="color:var(--accent)">5</strong> d&iacute;as, &iquest;probabilidad de llegar tarde exactamente <strong style="color:var(--accent)">2</strong> d&iacute;as?',
+        n:5, k:2, p:.4, q:.6, fo:['p','C','q'], dist:['40','0.04','2.4','10']
+    },
+    {
+        stmt: 'Una vacuna tiene una efectividad del <strong style="color:var(--accent)">92%</strong>. Si se vacunan <strong style="color:var(--accent)">5</strong> personas, &iquest;probabilidad de que exactamente <strong style="color:var(--accent)">4</strong> queden protegidas?',
+        n:5, k:4, p:.92, q:.08, fo:['C','p','q'], dist:['92','0.092','8','0.8']
+    },
+    {
+        stmt: 'En una zona, la probabilidad de lluvia cualquier d&iacute;a es del <strong style="color:var(--accent)">30%</strong>. En <strong style="color:var(--accent)">7</strong> d&iacute;as, &iquest;probabilidad de que llueva exactamente <strong style="color:var(--accent)">3</strong> d&iacute;as?',
+        n:7, k:3, p:.3, q:.7, fo:['p','q','C'], dist:['30','0.03','21','10']
+    },
+    {
+        stmt: 'La probabilidad de que nazca ni&ntilde;o es del <strong style="color:var(--accent)">48%</strong>. En <strong style="color:var(--accent)">5</strong> nacimientos, &iquest;probabilidad de que exactamente <strong style="color:var(--accent)">2</strong> sean ni&ntilde;os?',
+        n:5, k:2, p:.48, q:.52, fo:['q','C','p'], dist:['48','0.048','7','10']
+    },
+    {
+        stmt: 'Un anuncio online consigue que el <strong style="color:var(--accent)">20%</strong> de quienes lo ven compren. Si lo ven <strong style="color:var(--accent)">10</strong> personas, &iquest;probabilidad de que exactamente <strong style="color:var(--accent)">3</strong> compren?',
+        n:10, k:3, p:.2, q:.8, fo:['C','q','p'], dist:['20','0.02','30','13']
+    }
+];
+
+// ============================
+// UTILIDADES
+// ============================
+function comb(n,k){
+    if(k>n)return 0;if(k===0||k===n)return 1;
+    let r=1;for(let i=0;i<Math.min(k,n-k);i++)r=r*(n-i)/(i+1);
+    return Math.round(r);
+}
+function fmtNum(v){
+    if(Number.isInteger(v))return v.toString();
+    let s=v.toFixed(6);
+    s=s.replace(/0+$/,'').replace(/\.$/,'');
+    if(s.length>7)s=parseFloat(v.toFixed(4)).toString();
+    return s;
+}
+function shuffle(a){let b=[...a];for(let i=b.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+
+// ============================
+// ESTADO
+// ============================
+let S={idx:0,score:0,streak:0,maxStreak:0,results:[],
+    selected:null,placed:{},chips:[],slots:[],
+    errors:{},hints:{},hintCount:0,calculated:false,
+    perfectExercise:true};
+
+// ============================
+// TOASTS
+// ============================
+function toast(msg,type='i'){
+    const c=document.getElementById('toastC'),t=document.createElement('div');
+    t.className=`toast toast-${type}`;t.innerHTML=msg;c.appendChild(t);
+    setTimeout(()=>{t.classList.add('toast-out');setTimeout(()=>t.remove(),250)},2000);
+}
+
+// ============================
+// PARTÍCULAS
+// ============================
+function burst(el){
+    const r=el.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+    const c=document.getElementById('partC');
+    const cols=['#e8a317','#2dd4a0','#f5c242','#f97316','#fde68a'];
+    for(let i=0;i<14;i++){
+        const p=document.createElement('div');p.className='particle';
+        const a=(Math.PI*2*i)/14+(Math.random()-.5)*.5,d=35+Math.random()*55;
+        p.style.left=cx+'px';p.style.top=cy+'px';
+        p.style.setProperty('--dx',Math.cos(a)*d+'px');
+        p.style.setProperty('--dy',Math.sin(a)*d+'px');
+        p.style.backgroundColor=cols[i%cols.length];
+        p.style.width=(5+Math.random()*4)+'px';p.style.height=p.style.width;
+        c.appendChild(p);setTimeout(()=>p.remove(),700);
+    }
+}
+function bigBurst(){
+    const c=document.getElementById('partC');
+    const cols=['#e8a317','#2dd4a0','#f5c242','#f97316','#fde68a','#fff'];
+    for(let i=0;i<35;i++){
+        const p=document.createElement('div');p.className='particle';
+        const a=Math.random()*Math.PI*2,d=80+Math.random()*120;
+        p.style.left=window.innerWidth/2+'px';p.style.top=window.innerHeight/2+'px';
+        p.style.setProperty('--dx',Math.cos(a)*d+'px');
+        p.style.setProperty('--dy',Math.sin(a)*d+'px');
+        p.style.backgroundColor=cols[i%cols.length];
+        const sz=4+Math.random()*6;p.style.width=sz+'px';p.style.height=sz+'px';
+        c.appendChild(p);setTimeout(()=>p.remove(),800);
+    }
+}
+
+// ============================
+// PANTALLAS
+// ============================
+function showScr(id){
+    ['scrWelcome','scrGame','scrResults'].forEach(s=>document.getElementById(s).classList.toggle('hidden',s!==id));
+}
+
+// ============================
+// PROGRESO
+// ============================
+function buildProg(){
+    const b=document.getElementById('progBar');b.innerHTML='';
+    EX.forEach((_,i)=>{const d=document.createElement('div');d.className='pseg';d.id=`sg${i}`;b.appendChild(d)});
+}
+function updProg(){
+    EX.forEach((_,i)=>{
+        const s=document.getElementById(`sg${i}`);s.className='pseg';
+        if(i<S.idx){const r=S.results[i],ratio=r.score/r.max;
+            s.classList.add(ratio>=.8?'sg':ratio>=.5?'sa':'se')}
+        else if(i===S.idx)s.classList.add('sc');
+    });
+}
+
+// ============================
+// INICIAR JUEGO
+// ============================
+function startGame(){
+    S={idx:0,score:0,streak:0,maxStreak:0,results:[],
+        selected:null,placed:{},chips:[],slots:[],
+        errors:{},hints:{},hintCount:0,calculated:false,perfectExercise:true};
+    showScr('scrGame');buildProg();loadEx(0);
+}
+
+// ============================
+// GENERAR FÓRMULA HTML
+// ============================
+function buildFormula(ex){
+    const typeMap={};// type -> array de slot ids
+    let sid=0;
+    function mkSlot(type){
+        const id=`s${sid++}`;
+        if(!typeMap[type])typeMap[type]=[];
+        typeMap[type].push(id);
+        return id;
+    }
+    // Generar slots según el orden de factores
+    const kSlot=mkSlot('k');// P(X = k)
+    const slotsByFactor=[];
+    ex.fo.forEach(f=>{
+        if(f==='C')slotsByFactor.push({type:'C',nSlot:mkSlot('n'),kSlot:mkSlot('k')});
+        else if(f==='p')slotsByFactor.push({type:'p',pSlot:mkSlot('p'),expSlot:mkSlot('k')});
+        else slotsByFactor.push({type:'q',qSlot:mkSlot('q'),expSlot:mkSlot('nk')});
+    });
+
+    // Construir HTML
+    let h=`<span class="ftxt">P(X = </span>`;
+    h+=`<span class="fslot" data-type="k" data-sid="${kSlot}" onclick="onSlot('${kSlot}')">?</span>`;
+    h+=`<span class="ftxt">) = </span>`;
+    slotsByFactor.forEach((fac,i)=>{
+        if(i>0)h+=`<span class="ftimes">&times;</span>`;
+        if(fac.type==='C'){
+            h+=`<span class="ftxt">C(</span>`;
+            h+=`<span class="fslot" data-type="n" data-sid="${fac.nSlot}" onclick="onSlot('${fac.nSlot}')">?</span>`;
+            h+=`<span class="ftxt">, </span>`;
+            h+=`<span class="fslot" data-type="k" data-sid="${fac.kSlot}" onclick="onSlot('${fac.kSlot}')">?</span>`;
+            h+=`<span class="ftxt">)</span>`;
+        }else if(fac.type==='p'){
+            h+=`<span class="fslot" data-type="p" data-sid="${fac.pSlot}" onclick="onSlot('${fac.pSlot}')">?</span>`;
+            h+=`<span class="ftxt"><sup>`;
+            h+=`<span class="fslot" data-type="k" data-sid="${fac.expSlot}" onclick="onSlot('${fac.expSlot}')" style="min-width:28px;height:24px;font-size:.78em">?</span>`;
+            h+=`</sup></span>`;
+        }else{
+            h+=`<span class="fslot" data-type="q" data-sid="${fac.qSlot}" onclick="onSlot('${fac.qSlot}')">?</span>`;
+            h+=`<span class="ftxt"><sup>`;
+            h+=`<span class="fslot" data-type="nk" data-sid="${fac.expSlot}" onclick="onSlot('${fac.expSlot}')" style="min-width:28px;height:24px;font-size:.78em">?</span>`;
+            h+=`</sup></span>`;
+        }
+    });
+    return {html:h,typeMap};
+}
+
+// ============================
+// GENERAR FICHAS
+// ============================
+function buildChips(ex){
+    const nk=ex.n-ex.k;
+    const correct=[
+        {id:'n',display:ex.n.toString()},
+        {id:'k',display:ex.k.toString()},
+        {id:'p',display:fmtNum(ex.p)},
+        {id:'q',display:fmtNum(ex.q)},
+        {id:'nk',display:nk.toString()}
+    ];
+    const distr=ex.dist.map((d,i)=>({id:`d${i+1}`,display:d}));
+    return shuffle([...correct,...distr]);
+}
+
+// ============================
+// CARGAR EJERCICIO
+// ============================
+function loadEx(idx){
+    const ex=EX[idx];
+    S.idx=idx;S.selected=null;S.placed={};S.errors={};S.hints={};S.hintCount=0;S.calculated=false;S.perfectExercise=true;
+
+    const chips=buildChips(ex);
+    S.chips=chips;
+
+    const {html:fhtml,typeMap}=buildFormula(ex);
+    S.typeMap=typeMap;
+
+    document.getElementById('pCounter').textContent=`${idx+1} / ${EX.length}`;
+    document.getElementById('scoreN').textContent=S.score;
+    document.getElementById('streakN').textContent=S.streak;
+    updProg();
+
+    // Etiquetas para los slots (para pistas)
+    const typeLabels={n:'n (total de ensayos)',k:'k (éxitos deseados)',p:'p (prob. de éxito)',q:'q (prob. de fracaso)',nk:'n−k (fracasos)'};
+
+    const cont=document.getElementById('gameCont');
+    cont.innerHTML=`
+        <div class="pcard">
+            <p class="text-base mb-4 leading-relaxed" style="font-weight:500">${ex.stmt}</p>
+
+            <div class="formula-board mb-5" id="formulaBoard">${fhtml}</div>
+
+            <div class="mb-3 flex items-center justify-between flex-wrap gap-2">
+                <span class="text-xs font-medium" style="color:var(--muted)"><i class="fas fa-puzzle-piece mr-1"></i>Coloca cada ficha en su lugar</span>
+                <div class="flex gap-2">
+                    <button class="btn-icon" id="hintBtn" onclick="useHint()" title="Pista"><i class="fas fa-lightbulb"></i></button>
+                    <button class="btn-icon" onclick="resetEx()" title="Reiniciar"><i class="fas fa-undo"></i></button>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2 mb-5" id="chipsArea">
+                ${chips.map(c=>`<div class="chip" data-cid="${c.id}" onclick="onChip('${c.id}')">${c.display}</div>`).join('')}
+            </div>
+
+            <div id="calcBtnArea" class="hidden mb-4">
+                <button class="btn-p w-full" onclick="calculate()"><i class="fas fa-calculator mr-2"></i>Calcular resultado</button>
+            </div>
+
+            <div id="devArea"></div>
+            <div id="nextArea"></div>
+        </div>
+    `;
+}
+
+// ============================
+// INTERACCIÓN: FICHA
+// ============================
+function onChip(cid){
+    if(S.calculated)return;
+    const el=document.querySelector(`.chip[data-cid="${cid}"]`);
+    if(el.classList.contains('used'))return;
+
+    // Deseleccionar anterior
+    document.querySelectorAll('.chip.selected').forEach(c=>c.classList.remove('selected'));
+
+    if(S.selected===cid){S.selected=null;return}
+    S.selected=cid;
+    el.classList.add('selected');
+}
+
+// ============================
+// INTERACCIÓN: SLOT
+// ============================
+function onSlot(sid){
+    if(S.calculated)return;
+    const slotEl=document.querySelector(`.fslot[data-sid="${sid}"]`);
+    const type=slotEl.dataset.type;
+
+    // Si el slot ya está lleno, quitarlo
+    if(slotEl.classList.contains('filled')){
+        removeType(type);return;
+    }
+
+    // Si no hay ficha seleccionada
+    if(!S.selected){
+        toast('Selecciona una ficha primero','i');return;
+    }
+
+    // Verificar si la ficha es correcta para este tipo
+    if(S.selected===type){
+        placeType(type,S.selected);
+    }else{
+        // Incorrecto
+        S.errors[type]=(S.errors[type]||0)+1;
+        S.perfectExercise=false;
+        slotEl.classList.add('wrong-flash');
+        setTimeout(()=>slotEl.classList.remove('wrong-flash'),450);
+        toast('Ese valor no va aqui','e');
+    }
+}
+
+// ============================
+// COLOCAR TIPO
+// ============================
+function placeType(type,cid){
+    const chip=S.chips.find(c=>c.id===cid);
+    S.placed[type]=cid;
+
+    // Llenar todos los slots de este tipo
+    document.querySelectorAll(`.fslot[data-type="${type}"]`).forEach(el=>{
+        el.textContent=chip.display;el.classList.add('filled');
+    });
+
+    // Marcar ficha como usada
+    const chipEl=document.querySelector(`.chip[data-cid="${cid}"]`);
+    chipEl.classList.remove('selected');chipEl.classList.add('used');
+
+    S.selected=null;
+    burst(chipEl);
+
+    // Quitar hints de ese tipo
+    document.querySelectorAll(`.fslot[data-type="${type}"]`).forEach(el=>el.classList.remove('hint-glow'));
+
+    // Verificar si todo está lleno
+    checkAllFilled();
+}
+
+// ============================
+// QUITAR TIPO
+// ============================
+function removeType(type){
+    const cid=S.placed[type];
+    if(!cid)return;
+    delete S.placed[type];
+
+    document.querySelectorAll(`.fslot[data-type="${type}"]`).forEach(el=>{
+        el.textContent='?';el.classList.remove('filled');
+    });
+
+    const chipEl=document.querySelector(`.chip[data-cid="${cid}"]`);
+    chipEl.classList.remove('used');
+}
+
+// ============================
+// VERIFICAR TODO LLENO
+// ============================
+function checkAllFilled(){
+    const types=['n','k','p','q','nk'];
+    const allFilled=types.every(t=>S.placed[t]);
+    if(allFilled){
+        document.getElementById('calcBtnArea').classList.remove('hidden');
+        toast('Formula completa, calcula el resultado','s');
+    }else{
+        document.getElementById('calcBtnArea').classList.add('hidden');
+    }
+}
+
+// ============================
+// PISTA
+// ============================
+function useHint(){
+    if(S.calculated)return;
+    const types=['n','k','p','q','nk'];
+    const empty=types.filter(t=>!S.placed[t]);
+    if(empty.length===0){toast('Todos los espacios estan llenos','i');return}
+
+    if(S.hintCount>=3){toast('Maximo 3 pistas por ejercicio','e');return}
+
+    const typeLabels={n:'n (ensayos)',k:'k (exitos)',p:'p (prob. exito)',q:'q (prob. fracaso)',nk:'n−k (fracasos)'};
+    const pick=empty[Math.floor(Math.random()*empty.length)];
+
+    S.hints[pick]=true;S.hintCount++;S.perfectExercise=false;
+
+    // Resaltar slots de ese tipo
+    document.querySelectorAll(`.fslot[data-type="${pick}"]`).forEach(el=>el.classList.add('hint-glow'));
+
+    // Deshabilitar botón si ya usó 3
+    if(S.hintCount>=3)document.getElementById('hintBtn').classList.add('used');
+
+    toast(`<i class="fas fa-lightbulb mr-1"></i>Busca: <strong>${typeLabels[pick]}</strong> (pista ${S.hintCount}/3)`,'i');
+}
+
+// ============================
+// REINICIAR EJERCICIO
+// ============================
+function resetEx(){
+    ['n','k','p','q','nk'].forEach(t=>removeType(t));
+    S.selected=null;S.errors={};S.calculated=false;S.perfectExercise=true;
+    document.querySelectorAll('.chip').forEach(c=>{c.classList.remove('selected','used')});
+    document.querySelectorAll('.fslot').forEach(s=>{s.classList.remove('filled','hint-glow','wrong-flash');s.textContent='?'});
+    document.getElementById('calcBtnArea').classList.add('hidden');
+    document.getElementById('devArea').innerHTML='';
+    document.getElementById('nextArea').innerHTML='';
+    document.getElementById('hintBtn').classList.remove('used');
+    S.hintCount=0;S.hints={};
+}
+
+// ============================
+// CALCULAR RESULTADO
+// ============================
+function calculate(){
+    if(S.calculated)return;
+    S.calculated=true;
+    document.getElementById('calcBtnArea').classList.add('hidden');
+
+    const ex=EX[S.idx];
+    const c=comb(ex.n,ex.k);
+    const nk=ex.n-ex.k;
+    const pk=Math.pow(ex.p,ex.k);
+    const qnk=Math.pow(ex.q,nk);
+    const result=c*pk*qnk;
+
+    const pDisp=fmtNum(ex.p);
+    const qDisp=fmtNum(ex.q);
+
+    const steps=[
+        {label:`C(${ex.n}, ${ex.k}) = ${c}`,val:c.toString()},
+        {label:`${pDisp}<sup>${ex.k}</sup> = ${fmtNum(pk)}`,val:fmtNum(pk)},
+        {label:`${qDisp}<sup>${nk}</sup> = ${fmtNum(qnk)}`,val:fmtNum(qnk)},
+        {label:`P = ${c} &times; ${fmtNum(pk)} &times; ${fmtNum(qnk)}`,val:fmtNum(result),isFinal:true}
+    ];
+
+    const devArea=document.getElementById('devArea');
+    devArea.innerHTML=`<div class="text-xs font-mono mb-2" style="color:var(--success)"><i class="fas fa-check-circle mr-1"></i>Desarrollo del calculo</div>`;
+
+    steps.forEach((st,i)=>{
+        const div=document.createElement('div');
+        div.className=`dev-step ${st.isFinal?'':''}`;
+        div.innerHTML=st.isFinal
+            ?`<div class="dev-line dev-final">${st.label}<span class="dev-result-num">${st.val}</span></div>`
+            :`<div class="dev-line" style="color:var(--fg)">${st.label}</div>`;
+        devArea.appendChild(div);
+        setTimeout(()=>div.classList.add('show'),400*(i+1));
+    });
+
+    // Puntuación
+    setTimeout(()=>{
+        let pts=0;
+        ['n','k','p','q','nk'].forEach(t=>{
+            let base=100;
+            if(S.hints[t])base=25;
+            else if(S.errors[t]>0)base=50;
+            pts+=base;
+        });
+        if(S.perfectExercise)pts+=200;
+        S.score+=pts;
+        if(S.perfectExercise){S.streak++;if(S.streak>S.maxStreak)S.maxStreak=S.streak}
+        else S.streak=0;
+
+        S.results.push({score:pts,max:700,perfect:S.perfectExercise,hints:S.hintCount});
+        document.getElementById('scoreN').textContent=S.score;
+        document.getElementById('streakN').textContent=S.streak;
+
+        if(S.perfectExercise){bigBurst();toast(`Perfecto! +${pts} pts (+200 bonus)`,'s')}
+        else toast(`+${pts} pts`,'s');
+
+        updProg();
+
+        // Botón siguiente
+        const isLast=S.idx>=EX.length-1;
+        document.getElementById('nextArea').innerHTML=`
+            <div class="mt-5 flex justify-end">
+                <button class="btn-p" onclick="${isLast?'showResults()':'nextEx()'}">
+                    ${isLast?'<i class="fas fa-trophy mr-2"></i>Ver resultados':'Siguiente<i class="fas fa-arrow-right ml-2"></i>'}
+                </button>
+            </div>`;
+    },400*(steps.length+1));
+}
+
+// ============================
+// SIGUIENTE EJERCICIO
+// ============================
+function nextEx(){
+    const cont=document.getElementById('gameCont');
+    cont.style.opacity='0';cont.style.transform='translateY(-15px)';cont.style.transition='opacity .25s,transform .25s';
+    setTimeout(()=>{loadEx(S.idx+1);cont.style.opacity='1';cont.style.transform='translateY(0)'},260);
+}
+
+// ============================
+// RESULTADOS
+// ============================
+function showResults(){
+    showScr('scrResults');
+    const totalMax=EX.length*700;
+    const totalEarned=S.results.reduce((s,r)=>s+r.score,0);
+    const pct=totalMax>0?(totalEarned/totalMax*100):0;
+    const perfects=S.results.filter(r=>r.perfect).length;
+
+    let rank,rc;
+    if(pct>=90){rank='Maestro Binomial';rc='rg'}
+    else if(pct>=70){rank='Experto';rc='rs'}
+    else if(pct>=50){rank='Aprendiz';rc='rb'}
+    else{rank='Principiante';rc='rk'}
+
+    const cont=document.getElementById('resCont');
+    cont.innerHTML=`
+        <div class="mb-1 text-xs font-mono tracking-widest uppercase" style="color:var(--muted)">RESULTADOS FINALES</div>
+        <div class="score-big mb-1">${totalEarned}</div>
+        <div class="text-sm mb-3" style="color:var(--muted)">de ${totalMax} puntos posibles</div>
+        <div class="mb-6"><span class="rank-badge ${rc}">${rank}</span></div>
+        <div class="grid grid-cols-3 gap-3 mb-8">
+            <div class="text-center p-3 rounded-xl" style="background:var(--card);border:1px solid var(--border)">
+                <div class="text-2xl font-bold font-mono" style="color:var(--success)">${perfects}/${EX.length}</div>
+                <div class="text-xs mt-1" style="color:var(--muted)">Perfectos</div>
+            </div>
+            <div class="text-center p-3 rounded-xl" style="background:var(--card);border:1px solid var(--border)">
+                <div class="text-2xl font-bold font-mono" style="color:var(--accent)">${Math.round(pct)}%</div>
+                <div class="text-xs mt-1" style="color:var(--muted)">Precisión</div>
+            </div>
+            <div class="text-center p-3 rounded-xl" style="background:var(--card);border:1px solid var(--border)">
+                <div class="text-2xl font-bold font-mono" style="color:var(--fg)">${S.maxStreak}</div>
+                <div class="text-xs mt-1" style="color:var(--muted)">Mejor racha</div>
+            </div>
+        </div>
+        <div class="text-left mb-8">
+            <div class="text-sm font-semibold mb-3" style="color:var(--muted)">Detalle por ejercicio</div>
+            <div class="flex flex-col gap-2">
+                ${S.results.map((r,i)=>{
+                    const ratio=r.score/r.max;
+                    const bc=ratio>=.8?'var(--success)':ratio>=.5?'var(--accent)':'var(--error)';
+                    const shortStmt=EX[i].stmt.replace(/<[^>]*>/g,'').substring(0,55)+'...';
+                    return `<div class="rcard">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-mono" style="color:var(--muted)">${i+1}.</span>
+                                <span class="text-sm" style="color:var(--fg)">${shortStmt}</span>
+                                ${r.perfect?'<i class="fas fa-crown" style="color:var(--accent2);font-size:.7rem" title="Perfecto"></i>':''}
+                            </div>
+                            <span class="text-sm font-mono font-bold" style="color:${bc}">${r.score}/${r.max}</span>
+                        </div>
+                        <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+                            <div class="bar-fill" style="width:${ratio*100}%;background:${bc}"></div>
+                        </div>
+                        <div class="text-xs mt-1" style="color:var(--muted)">${r.hints>0?r.hints+' pista(s) usada(s)':'Sin pistas'}</div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>
+        <div class="flex gap-3 justify-center flex-wrap">
+            <button class="btn-p" onclick="startGame()"><i class="fas fa-redo mr-2"></i>Jugar de nuevo</button>
+            <button class="btn-s" onclick="showScr('scrWelcome')"><i class="fas fa-home mr-2"></i>Inicio</button>
+        </div>
+    `;
+
+    // Animar barras
+    setTimeout(()=>{document.querySelectorAll('.bar-fill').forEach(b=>{const w=b.style.width;b.style.width='0%';setTimeout(()=>b.style.width=w,100)})},50);
+
+    if(pct>=70)bigBurst();
+}
+
+// Click fuera para deseleccionar
+document.addEventListener('click',e=>{
+    if(!e.target.closest('.chip')&&!e.target.closest('.fslot')&&S.selected){
+        document.querySelectorAll('.chip.selected').forEach(c=>c.classList.remove('selected'));
+        S.selected=null;
+    }
+});
+</script>
+</body>
+</html>
